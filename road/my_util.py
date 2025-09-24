@@ -331,3 +331,34 @@ class MyUtil:
 
         traffic_net.add_rule(intersection_name, "dir1_rule", dir1_rule)
         traffic_net.add_rule(intersection_name, "dir2_rule", dir2_rule)
+
+
+
+    @staticmethod
+    def make_multi_straight_lane(
+        lane_count: int,
+        start: np.ndarray,
+        end: np.ndarray,
+        offset: np.ndarray = np.array([0,0]),
+        angle: float = 0,
+    ) -> list[StraightLane]:
+        """
+        複数直線車線を作成
+        """
+        lane_width = AbstractLane.DEFAULT_WIDTH
+        lanes = []
+
+        rotation = np.array(
+            [[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]]
+        )
+
+        for lane in range(lane_count):
+            lane_offset = - lane * lane_width
+            lane_start = offset + rotation @ (start + np.array([0, lane_offset]))
+            lane_end = offset + rotation @ (end + np.array([0, lane_offset]))
+            line_types = [
+                LineType.CONTINUOUS_LINE if lane == 0 else LineType.STRIPED,
+                LineType.CONTINUOUS_LINE if lane == lanes - 1 else LineType.NONE,
+            ]
+            lanes.append(StraightLane(lane_start, lane_end, line_types=line_types))
+        return lanes
