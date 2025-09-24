@@ -217,7 +217,7 @@ class IDMVehicle(ControlledVehicle):
                 return acc
             min_brake_dist = self.get_min_break_dist()
             safe_dist = d - self.STOP_LINE
-            if d + self.BRAKEING_ERROR < min_brake_dist:  # 急ブレーキ
+            if d + self.BRAKEING_ERROR < min_brake_dist:
                 return acc
             else:
                 return self.get_desired_acc(safe_dist)
