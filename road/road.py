@@ -94,6 +94,7 @@ class RoadNetwork:
         """
         _from, _to, _id = current_index
         next_to = next_id = None
+        
         # Pick next road according to planned route
         if route:
             if (

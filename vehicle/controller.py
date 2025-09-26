@@ -74,16 +74,66 @@ class ControlledVehicle(Vehicle):
 
         :param destination: a node in the road network
         """
+
+        import inspect
+        import re
+
+        # if inspect.stack()[1].function != "_make_vehicles":
+        #     print("from ", self.lane_index[1], " to ", destination)
         try:
             path = self.road.network.shortest_path(self.lane_index[1], destination)
         except KeyError:
             path = []
         if path:
+            # self.route = [self.lane_index] + [
+            #     (path[i], path[i + 1], None) for i in range(len(path) - 1)
+            # ]
+            self.route = [self.lane_index]
+            for i in range(len(path) - 1):
+                lane_id = None
+                _from_node = path[i].split("_")
+                _to_node   = path[i + 1].split("_")
+                if _from_node[0] != _to_node[0]:
+                    self.route.append((path[i], path[i+1], lane_id))
+                    continue
+
+                _from_result = re.match(r"([a-zA-Z]+)([0-9]+)", _from_node[1])
+                _to_result   = re.match(r"([a-zA-Z]+)([0-9]+)", _to_node[1])
+                _from_alpha, _from_num = _from_result.groups()
+                _to_alpha,   _to_num   = _to_result.groups()
+                _from_num = int(_from_num)
+                _to_num = int(_to_num)
+
+                # 交差点内部のレーンでない場合にはlane_idを指定しない
+                if _from_alpha != "ii" or _to_alpha != "io":
+                    self.route.append((path[i], path[i+1], lane_id))
+                    continue
+
+                # 直進レーンの場合lane_idを指定しない
+                if _from_num == (_to_num + 2) % 4:
+                    self.route.append((path[i], path[i+1], lane_id))
+                #　左折レーンの場合は左車線を指定
+                elif _from_num == (_to_num + 1) % 4:
+                    lanes = self.road.network.graph[path[i]][path[i+1]]
+                    lane_id = len(lanes) - 1
+                    self.route.append((path[i], path[i+1], lane_id))
+                # 右折レーンの場合は右車線を指定
+                elif _from_num == (_to_num + 3) % 4:
+                    lanes = self.road.network.graph[path[i]][path[i+1]]
+                    lane_id = 0
+                    self.route.append((path[i], path[i+1], lane_id))
+                else:
+                    assert False, f"Unexpected route: from {_from_num} to {_to_num}"
+
+
             self.route = [self.lane_index] + [
                 (path[i], path[i + 1], None) for i in range(len(path) - 1)
             ]
         else:
             self.route = [self.lane_index]
+
+        # if inspect.stack()[1].function != "_make_vehicles":
+        #     print("Planned route: ", self.route)
         return self
 
     def act(self, action: Union[dict, str] = None) -> None:

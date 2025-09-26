@@ -810,6 +810,10 @@ class TrafficLightObservation(ObservationType):
         # print(f"state: {state}, distance: {distance}")
         # if state == TrafficLightState.GREEN:
         #     distance = -1000
+        if self.env.time < 1:
+            print(f"state: {state}")
+            # print(f"current_lane: {self.observer_vehicle.lane_index}")
+            print(f"route: {self.observer_vehicle.route}")
         obs = distance
         obs = {
             "traffic_light_state": state,

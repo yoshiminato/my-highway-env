@@ -45,7 +45,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
                 "duration": 30,  # [s]
                 "destination": None, #"center_oo1",
                 "controlled_vehicles": 1,
-                "initial_vehicle_count": 10,
+                "initial_vehicle_count": 0,
                 "spawn_probability": 1,
                 "screen_width": 600,
                 "screen_height": 600,
@@ -300,7 +300,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
             )
             try:
                 ego_vehicle.plan_route_to(destination)
-                # print("Planned route:", ego_vehicle.route)
+                # print("Planned route at env:", ego_vehicle.route)
                 ego_vehicle.speed_index = ego_vehicle.speed_to_index(
                     ego_lane.speed_limit
                 )

@@ -462,7 +462,7 @@ class MyUtil:
             )
 
             for id, lane in enumerate(straight_lanes):
-                _from = intersection_name + "_" + "ii" + str((corner + 2) % 4)
+                _from = intersection_name + "_" + "ii" + str(corner)
                 _to   = intersection_name + "_" + "io" + str((corner + 2) % 4)
                 road_net.add_lane(_from, _to, lane)
                 straight_lane_index = (_from, _to, id)
