@@ -38,7 +38,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
                 "action": {
                     "type": "DiscreteMetaAction",
                     "longitudinal": True,
-                    "lateral": False,
+                    "lateral": True,
                     # "target_speeds": [0, 4.5, 9],
                     "target_speeds": [0, 1, 2],
                 },
@@ -171,7 +171,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         intersection_length = 2 * (outer_distance + access_length)
         bridge_length = 10  # [m]
 
-        MyUtil.make_intersection_v2(
+        MyUtil.make_intersection_v3(
             intersection_name="center",
             road_net=road_net,
             traffic_net=traffic_net,
@@ -281,8 +281,8 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         self.controlled_vehicles = []
         for ego_id in range(0, self.config["controlled_vehicles"]):
             ego_lane = self.road.network.get_lane(
-                (f"center_oi{ego_id % 4}_0", f"center_ii{ego_id % 4}_0", 0)
-                # (f"center_oi{ego_id % 4}", f"center_ii{ego_id % 4}", 0)
+                # (f"center_oi{ego_id % 4}_0", f"center_ii{ego_id % 4}_0", 0)
+                (f"center_oi{ego_id % 4}", f"center_ii{ego_id % 4}", 0)
 
             )
             destination = self.config["destination"]
@@ -290,8 +290,8 @@ class IntersectionTrafficLightEnv(AbstractEnv):
             while destination is None or  f"center_oo{ego_id % 4}" in destination:
                 destination = "center_oo" + str(
                     self.np_random.integers(0, 4)
-                ) + "_0"
-            print("plan from " + f"center_oi{ego_id % 4}_0 to {destination}")
+                )
+            # print("plan from " + f"center_oi{ego_id % 4}_0 to {destination}")
             ego_vehicle = self.action_type.vehicle_class(
                 self.road,
                 ego_lane.position(20 + 5 * self.np_random.normal(1), 0),
@@ -300,7 +300,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
             )
             try:
                 ego_vehicle.plan_route_to(destination)
-                print("Planned route:", ego_vehicle.route)
+                # print("Planned route:", ego_vehicle.route)
                 ego_vehicle.speed_index = ego_vehicle.speed_to_index(
                     ego_lane.speed_limit
                 )
@@ -333,12 +333,12 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         # route = self.np_random.choice(range(4), size=2, replace=False)
         route = np.array([0, 1])
         # route[1] = (route[0] + 2) % 4 if go_straight else route[1]
-        route[1] = (route[0] + 1) % 4
+        # route[1] = (route[0] + 1) % 4
         vehicle_type = utils.class_from_path(self.config["other_vehicles_type"])
         vehicle = vehicle_type.make_on_lane(
             self.road,
-            ("center_oi" + str(route[0]) + "_1", "center_ii" + str(route[0]) + "_1", 0),
-            # ("center_oi" + str(route[0]), "center_ii" + str(route[0]), 0),
+            # ("center_oi" + str(route[0]) + "_1", "center_ii" + str(route[0]) + "_1", 0),
+            ("center_oi" + str(route[0]), "center_ii" + str(route[0]), 0),
 
             longitudinal=(
                 longitudinal + 5 + self.np_random.normal() * position_deviation
@@ -348,11 +348,12 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         for v in self.road.vehicles:
             if np.linalg.norm(v.position - vehicle.position) < 15:
                 return
-        vehicle.plan_route_to("center_oo" + str(route[1]) + "_1")
-        # vehicle.plan_route_to("center_oo" + str(route[1]))
+        # vehicle.plan_route_to("center_oo" + str(route[1]) + "_1")
+        vehicle.plan_route_to("center_oo" + str(route[1]))
 
         vehicle.randomize_behavior()
         self.road.vehicles.append(vehicle)
+        # print("spawned vehicle on " + str(vehicle.route))
         return vehicle
 
     def _clear_vehicles(self) -> None:

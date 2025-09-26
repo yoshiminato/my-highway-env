@@ -13,9 +13,9 @@ class TrafficLightState(Enum):
 
 class TrafficLightRule:
     config: list[tuple[TrafficLightState, int]]    # (状態, 継続時間)
-    targets: list[tuple[str, str, AbstractLane]]  # 対象レーン
+    targets: list[tuple[str, str, int]]  # 対象レーン
 
-    def __init__(self, config: dict, targets: list[tuple[str, str, AbstractLane]]) -> None:
+    def __init__(self, config: dict, targets: list[tuple[str, str, int]]) -> None:
         self.config = config
         self.targets = targets
 
@@ -109,11 +109,12 @@ class TrafficLightNetwork:
         # print(f"_from: {_from}, _to: {_to}")
         for i_name, i_rules in self.graph.items():
             for r_name, rule in i_rules.items():
-                for f, t, l in rule.targets:
+                for f, t, id in rule.targets:
                     # print(f"f: {f}, t: {t}")
                     if (f, t) != (_from, _to):
                         continue
-                    dist = self.get_distance_to_endpoint(vehicle, l)
+                    lane = self.env.road.network.get_lane((f, t, id))
+                    dist = self.get_distance_to_endpoint(vehicle, lane)
                     return i_name, r_name, dist
         return None, None, None
 

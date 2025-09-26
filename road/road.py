@@ -47,9 +47,11 @@ class RoadNetwork:
         """
         _from, _to, _id = index
         if _id is None:
-            pass
-        if _id is None and len(self.graph[_from][_to]) == 1:
-            _id = 0
+            if len(self.graph[_from][_to]) == 1:
+                _id = 0
+            else:
+                # 複数レーンがある場合はデフォルトで0番レーンを使用
+                _id = 0
         return self.graph[_from][_to][_id]
 
     def get_closest_lane_index(
