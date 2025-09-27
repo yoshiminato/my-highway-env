@@ -45,7 +45,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
                 "duration": 30,  # [s]
                 "destination": None, #"center_oo1",
                 "controlled_vehicles": 1,
-                "initial_vehicle_count": 0,
+                "initial_vehicle_count": 10,
                 "spawn_probability": 1,
                 "screen_width": 600,
                 "screen_height": 600,
@@ -254,6 +254,12 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         vehicle_type.DISTANCE_WANTED = 7  # Low jam distance
         vehicle_type.COMFORT_ACC_MAX = 6
         vehicle_type.COMFORT_ACC_MIN = -3
+        
+        # # Enable lane changes for NPCs
+        # if hasattr(vehicle_type, 'LANE_CHANGE_MIN_ACC_GAIN'):
+        #     vehicle_type.LANE_CHANGE_MIN_ACC_GAIN = 0.1  # Lower threshold for more aggressive lane changes
+        #     vehicle_type.LANE_CHANGE_DELAY = 0.5  # More frequent lane change attempts
+        #     vehicle_type.POLITENESS = 0.1  # Slightly more considerate
 
         # Random vehicles
         simulation_steps = 3
@@ -351,6 +357,16 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         # vehicle.plan_route_to("center_oo" + str(route[1]) + "_1")
         vehicle.plan_route_to("center_oo" + str(route[1]))
 
+        # Enable lane changes for NPC vehicles
+        if hasattr(vehicle, 'enable_lane_change'):
+            vehicle.enable_lane_change = True
+        
+        # Set route with no specific lane preference to allow more lane changes
+        if hasattr(vehicle, 'route') and vehicle.route:
+            # Remove specific lane requirements from route to allow more flexibility
+            for i, (from_node, to_node, lane_id) in enumerate(vehicle.route):
+                vehicle.route[i] = (from_node, to_node, None)  # None allows any lane
+        
         vehicle.randomize_behavior()
         self.road.vehicles.append(vehicle)
         # print("spawned vehicle on " + str(vehicle.route))

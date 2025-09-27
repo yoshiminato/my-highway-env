@@ -114,21 +114,31 @@ class ControlledVehicle(Vehicle):
                     self.route.append((path[i], path[i+1], lane_id))
                 #　左折レーンの場合は左車線を指定
                 elif _from_num == (_to_num + 1) % 4:
-                    lanes = self.road.network.graph[path[i]][path[i+1]]
-                    lane_id = len(lanes) - 1
+                    # lanes = self.road.network.graph[path[i]][path[i+1]]
+                    # lane_id = len(lanes) - 1
+                    if i-1 >= 0:
+                        prev_from, prev_to, prev_id = self.route[-1]
+                        lanes = self.road.network.graph[prev_from][prev_to]
+                        prev_lane_id = len(lanes) - 1
+                        self.route[-1] = (prev_from, prev_to, prev_lane_id)
                     self.route.append((path[i], path[i+1], lane_id))
                 # 右折レーンの場合は右車線を指定
                 elif _from_num == (_to_num + 3) % 4:
-                    lanes = self.road.network.graph[path[i]][path[i+1]]
-                    lane_id = 0
+                    # lanes = self.road.network.graph[path[i]][path[i+1]]
+                    # lane_id = 0
+                    if i-1 >= 0:
+                        prev_from, prev_to, prev_id = self.route[-1]
+                        lanes = self.road.network.graph[prev_from][prev_to]
+                        prev_lane_id = 0
+                        self.route[-1] = (prev_from, prev_to, prev_lane_id)
                     self.route.append((path[i], path[i+1], lane_id))
                 else:
                     assert False, f"Unexpected route: from {_from_num} to {_to_num}"
 
 
-            self.route = [self.lane_index] + [
-                (path[i], path[i + 1], None) for i in range(len(path) - 1)
-            ]
+            # self.route = [self.lane_index] + [
+            #     (path[i], path[i + 1], None) for i in range(len(path) - 1)
+            # ]
         else:
             self.route = [self.lane_index]
 
@@ -185,9 +195,6 @@ class ControlledVehicle(Vehicle):
     def follow_road(self) -> None:
         """At the end of a lane, automatically switch to a next one."""
         if self.road.network.get_lane(self.target_lane_index).after_end(self.position):
-            t_lane = self.road.network.get_lane(self.target_lane_index)
-            cond = "ii" in self.target_lane_index[0]
-
             
             next_lane = self.road.network.next_lane(
                 self.target_lane_index,

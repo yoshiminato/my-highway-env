@@ -119,6 +119,14 @@ class TrafficLightNetwork:
         state = self.get_current_state(intersection_name, rule_name, self.env.time)
         # print("state:", state, "distance:", dist, "from route[1]")
         return state, dist
+    
+
+    def get_caller_name(self):
+
+        import inspect
+        
+        stack = inspect.stack()
+        return stack[3].function  # 呼び出し元の関数名を返す
 
     def get_traffic_names_and_distance_by_lane(self, vehicle, path) -> tuple[str | None, str | None, float | None]:
         _from, _to, _id = path
@@ -131,6 +139,9 @@ class TrafficLightNetwork:
                         continue
 
                     if _id != None and i != _id:
+                            # print(self.get_caller_name())
+                            if self.get_caller_name() == "observe":
+                                print(f"======Skipping {i_name}, {r_name} (id mismatch) {i} != {_id}")
                             continue
                     
                     lane = self.env.road.network.get_lane((f, t, i))

@@ -109,6 +109,7 @@ class IDMVehicle(ControlledVehicle):
             return
         action = {}
         # Lateral: MOBIL
+        # 車線変更？レーン変更処理
         self.follow_road()
         if self.enable_lane_change:
             self.change_lane_policy()
@@ -153,6 +154,11 @@ class IDMVehicle(ControlledVehicle):
         """
         self.timer += dt
         super().step(dt)
+
+    def fix_target_lane(self) -> None:
+        """Change the target lane of the vehicle."""
+        if self.target_lane_index != self.lane_index:
+            self.target_lane_index = self.lane_index
 
     def acceleration(
         self,
