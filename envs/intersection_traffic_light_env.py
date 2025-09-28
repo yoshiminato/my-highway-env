@@ -288,7 +288,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         for ego_id in range(0, self.config["controlled_vehicles"]):
             ego_lane = self.road.network.get_lane(
                 # (f"center_oi{ego_id % 4}_0", f"center_ii{ego_id % 4}_0", 0)
-                (f"center_oi{ego_id % 4}", f"center_ii{ego_id % 4}", 0)
+                (f"center_oi{ego_id % 4}", f"center_ii{ego_id % 4}", 1)
 
             )
             destination = self.config["destination"]
@@ -297,7 +297,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
                 destination = "center_oo" + str(
                     self.np_random.integers(0, 4)
                 )
-            # print("plan from " + f"center_oi{ego_id % 4}_0 to {destination}")
+            print("plan from " + f"center_oi{ego_id % 4} to {destination}")
             ego_vehicle = self.action_type.vehicle_class(
                 self.road,
                 ego_lane.position(20 + 5 * self.np_random.normal(1), 0),
@@ -306,7 +306,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
             )
             try:
                 ego_vehicle.plan_route_to(destination)
-                # print("Planned route at env:", ego_vehicle.route)
+                print("Planned route:", ego_vehicle.route)
                 ego_vehicle.speed_index = ego_vehicle.speed_to_index(
                     ego_lane.speed_limit
                 )
@@ -336,15 +336,16 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         if self.np_random.uniform() > spawn_probability:
             return
 
-        # route = self.np_random.choice(range(4), size=2, replace=False)
-        route = np.array([0, 1])
+        lane_id = self.np_random.choice(range(2))
+        route = self.np_random.choice(range(4), size=2, replace=False)
+        # route = np.array([0, 2])
         # route[1] = (route[0] + 2) % 4 if go_straight else route[1]
-        # route[1] = (route[0] + 1) % 4
+        route[1] = (route[0] - 1) % 4
         vehicle_type = utils.class_from_path(self.config["other_vehicles_type"])
         vehicle = vehicle_type.make_on_lane(
             self.road,
             # ("center_oi" + str(route[0]) + "_1", "center_ii" + str(route[0]) + "_1", 0),
-            ("center_oi" + str(route[0]), "center_ii" + str(route[0]), 0),
+            ("center_oi" + str(route[0]), "center_ii" + str(route[0]), lane_id),
 
             longitudinal=(
                 longitudinal + 5 + self.np_random.normal() * position_deviation
@@ -360,12 +361,17 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         # Enable lane changes for NPC vehicles
         if hasattr(vehicle, 'enable_lane_change'):
             vehicle.enable_lane_change = True
+
+        # if route[0] == 1:
+        #     print(str(vehicle.route))
+
+        # print(str(vehicle.route))
         
-        # Set route with no specific lane preference to allow more lane changes
-        if hasattr(vehicle, 'route') and vehicle.route:
-            # Remove specific lane requirements from route to allow more flexibility
-            for i, (from_node, to_node, lane_id) in enumerate(vehicle.route):
-                vehicle.route[i] = (from_node, to_node, None)  # None allows any lane
+        # # Set route with no specific lane preference to allow more lane changes
+        # if hasattr(vehicle, 'route') and vehicle.route:
+        #     # Remove specific lane requirements from route to allow more flexibility
+        #     for i, (from_node, to_node, lane_id) in enumerate(vehicle.route):
+        #         vehicle.route[i] = (from_node, to_node, None)  # None allows any lane
         
         vehicle.randomize_behavior()
         self.road.vehicles.append(vehicle)

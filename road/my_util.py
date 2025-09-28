@@ -378,6 +378,12 @@ class MyUtil:
             # Incoming
             start = np.array([-lane_width / 2, access_length + outer_distance])
             end = np.array([-lane_width / 2, outer_distance])
+
+            _from = intersection_name + "_" + "oi" + str(corner)
+            _to   = intersection_name + "_" + "ii" + str(corner)
+
+            # print(f"=======incoming lanes: from {_from} to {_to}")
+
             incoming_lanes = MyUtil.make_multi_straight_lane(
                 num_lanes,
                 start,
@@ -386,11 +392,7 @@ class MyUtil:
                 angle=angle,
             )
             for lane in incoming_lanes:
-                road_net.add_lane(
-                    intersection_name + "_" + "oi" + str(corner),
-                    intersection_name + "_" + "ii" + str(corner),
-                    lane
-                )
+                road_net.add_lane(_from, _to, lane)
 
             # Right turn
             r_center = np.array(offset) + rotation @ (
@@ -401,9 +403,12 @@ class MyUtil:
             )
             _from = intersection_name + "_" + "ii" + str(corner)
             _to   = intersection_name + "_" + "io" + str((corner - 1) % 4)
-            right_turn_lane = (
-                _from, _to,
-                CircularLane(
+
+            # print(f"=======right turn lane: from {_from} to {_to}")
+            # print(f"center: {r_center}")
+            
+
+            lane = CircularLane(
                     r_center,
                     right_turn_radius,
                     angle + np.radians(180),
@@ -411,12 +416,17 @@ class MyUtil:
                     line_types=[n, n],
                     priority=priority,
                     speed_limit=10,
-                ),
-            )
+                )
+            
+            # print(f"start: {lane.position(0,0)}, end: {lane.position(lane.length,0)}")
+
+            right_turn_lane = (_from, _to, lane)
+                
             road_net.add_lane(*right_turn_lane)
             right_lane_index = (_from, _to, None)
             assignTrafficRuleInIntersection(dir1_targets, dir2_targets, right_lane_index, corner)
             
+
             # Left turn
             l_center = np.array(offset) + rotation @ (
                 np.array(
@@ -428,9 +438,10 @@ class MyUtil:
             )
             _from = intersection_name + "_" + "ii" + str(corner)
             _to   = intersection_name + "_" + "io" + str((corner + 1) % 4)
-            left_turn_lane = (
-                _from, _to,
-                CircularLane(
+
+            # print(f"=======left turn lane: from {_from} to {_to}")
+
+            lane = CircularLane(
                     l_center,
                     left_turn_radius,
                     angle + np.radians(0),
@@ -439,8 +450,11 @@ class MyUtil:
                     line_types=[c, n],
                     priority=priority - 1,
                     speed_limit=10,
-                ),
-            )
+                )
+
+            # print(f"start: {lane.position(0,0)}, end: {lane.position(lane.length,0)}")
+
+            left_turn_lane = (_from, _to, lane)
             # if (corner + 1) % 4 == 1:
             #     start = left_turn_lane[2].position(0, 0)
             #     print("io1 end of left turn lane: " + str(start))
@@ -452,6 +466,11 @@ class MyUtil:
             start = np.array([-lane_width / 2, outer_distance])
             end = np.array([-lane_width / 2, -outer_distance])
 
+            _from = intersection_name + "_" + "ii" + str(corner)
+            _to   = intersection_name + "_" + "io" + str((corner + 2) % 4)
+
+            # print(f"=======straight lanes: from {_from} to {_to}")
+
             straight_lanes = MyUtil.make_multi_straight_lane(
                 num_lanes,
                 start,
@@ -461,9 +480,7 @@ class MyUtil:
                 no_line=True,
             )
 
-            for id, lane in enumerate(straight_lanes):
-                _from = intersection_name + "_" + "ii" + str(corner)
-                _to   = intersection_name + "_" + "io" + str((corner + 2) % 4)
+            for id, lane in enumerate(straight_lanes):    
                 road_net.add_lane(_from, _to, lane)
                 straight_lane_index = (_from, _to, id)
                 assignTrafficRuleInIntersection(dir1_targets, dir2_targets, straight_lane_index, corner)
@@ -475,6 +492,11 @@ class MyUtil:
 
             # if (corner + 2) % 4 == 1:
             #     print("======= target exit lane =======")
+
+            _from = intersection_name + "_" + "io" + str((corner + 2) % 4)
+            _to   = intersection_name + "_" + "oo" + str((corner + 2) % 4)
+
+            # print(f"=======exiting lanes: from {_from} to {_to}")
 
             exiting_lanes = MyUtil.make_multi_straight_lane(
                 num_lanes,
@@ -490,10 +512,11 @@ class MyUtil:
             # if (corner + 2) % 4 == 1:
             #     print("io1 start of exit lane: " + str(start))
 
+
             for lane in exiting_lanes:
                 road_net.add_lane(
-                    intersection_name + "_" + "io" + str(corner),
-                    intersection_name + "_" + "oo" + str(corner),
+                    _from,
+                    _to,
                     lane
                 )
 
@@ -529,7 +552,7 @@ class MyUtil:
         lanes = []
 
         rotation = np.array(
-            [[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]]
+            [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
         )
 
         for lane in range(lane_count):
@@ -540,6 +563,7 @@ class MyUtil:
                 LineType.CONTINUOUS_LINE if lane == lane_count - 1 else LineType.NONE,
                 LineType.CONTINUOUS_LINE if lane == 0 else LineType.STRIPED,
             ] if not no_line else [LineType.NONE, LineType.NONE]
+            # print(f"start: {lane_start}, end: {lane_end}")
             lanes.append(StraightLane(lane_start, lane_end, line_types=line_types))
         return lanes
 
