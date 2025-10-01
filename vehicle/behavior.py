@@ -39,11 +39,21 @@ class IDMVehicle(ControlledVehicle):
     DELTA_RANGE = [3.5, 4.5]
     """Range of delta when chosen randomly."""
 
-    STOP_LINE = 5.0  # [m]
+    STOP_LINE = 8.0  # [m]
 
-    BRAKEING_ERROR = 5.0  # [m]
+    OVERSHOOT_MARGIN = STOP_LINE + 5.0  # [m]
+    """Margin to overshoot the stop line."""
 
-    APPROACH_DISTANCE = 20.0  # [m]
+    SAFE_VELOCITY = 3.0  # [m/s]
+    """Safe velocity to avoid collisions."""
+
+    MIN_FOLLOWING_DISTANCE = 2.0  # [m]
+    FOLLOWING_DISTANCE_SPEED_COEF = 2.0
+    FOLLOWING_DISTANCE_RELATIVE_SPEED_COEF = 1.0
+
+    BRAKING_BUFFER = 2.0  # [m]
+
+    APPROACH_DISTANCE = 30.0  # [m]
 
     # Lateral policy parameters
     POLITENESS = 0.0  # in [0, 1]
@@ -201,46 +211,123 @@ class IDMVehicle(ControlledVehicle):
             acceleration -= self.COMFORT_ACC_MAX * np.power(
                 self.desired_gap(ego_vehicle, front_vehicle) / utils.not_zero(d), 2
             )
+            # acceleration = self.get_acc_frontvehicle(ego_vehicle, front_vehicle, acceleration)
 
         # traffic light
         net = self.road.traffic_light_network
         if net:
-            acceleration = self.update_acc_stopline(net, acceleration)
+            acceleration = min(acceleration, self.get_acc_stopline(net, acceleration))
 
         return acceleration
 
-    def update_acc_stopline(self, net, acc) -> float | None:
+    def get_acc_stopline(self, net, acc) -> float | None:
         assert net, "traffic light network is None"
         s, d = net.observe_traffic_light(self)
         
         if d is None:
             return acc
+
+        if d > self.APPROACH_DISTANCE:
+            return acc
         
         from highway_env.traffic_light.traffic_light import TrafficLightState
         
+        # 緑信号の場合は通常の加速度を返す
+        if s == TrafficLightState.GREEN:
+            return acc
+        
+        # 赤信号または黄信号の場合
         if s == TrafficLightState.RED or s == TrafficLightState.YELLOW:
-            if d > self.APPROACH_DISTANCE:
-                return acc
-            min_brake_dist = self.get_min_break_dist()
-            safe_dist = d - self.STOP_LINE
-            if d + self.BRAKEING_ERROR < min_brake_dist:
-                return acc
-            else:
-                return self.get_desired_acc(safe_dist)
+            min_brake_dist = self.get_min_brake_dist()
+            stop_distance = d - self.STOP_LINE
             
-        return acc     
+            # 既に停止線を越えてしまった場合
+            if stop_distance <= 0:
+                if abs(stop_distance) < self.OVERSHOOT_MARGIN and self.speed < self.SAFE_VELOCITY:
+                    # 少しのオーバーシュートで低速の場合は緩やかに停止
+                    # print(f"Stopping gently: d={d}, v={self.speed}, stop_dist={stop_distance}")
+
+                    acc = max(self.get_desired_acc(abs(stop_distance), 0) - 0.1, self.COMFORT_ACC_MIN)
+
+                    # print(f"d={d}, stop_distance={stop_distance}, v={self.speed}, acc={acc}")
+
+                    return acc  
+                    
+                else:
+                    # 大きくオーバーシュートした場合は通常の加速度を維持
+                    return acc
+            
+            # 停止線まで十分な距離がある場合
+            if stop_distance > min_brake_dist:
+                # 停止線に向けて減速
+                # target_speed = max(0, self.speed * (stop_distance / (min_brake_dist + self.BRAKING_BUFFER + 5.0)))
+                # acc_result = self.get_desired_acc(stop_distance, target_speed)
+                acc_result = self.get_desired_acc(stop_distance)
+
+                # if self.speed < -0.5:
+                #     print(f"get_desired_acc: d={d}, v={self.speed}, acc={acc_result}")
+
+                # print(f"Traffic light: {s.name}, dist: {d:.2f}, stop_dist: {stop_distance:.2f}, min_brake: {min_brake_dist:.2f}, target_speed: {target_speed:.2f}, acc: {acc_result:.2f}")
+                return acc_result
+            
+            # 停止が困難だが可能な場合
+            elif stop_distance > min_brake_dist * 0.8:
+                # 緊急ブレーキだが激しすぎない制御
+                emergency_acc = -(self.speed ** 2) / (2 * stop_distance)
+                # if self.speed < -0.5:
+                #     print(f"emergency_acc: d={d}, v={self.speed}, acc={emergency_acc}")
+                return max(emergency_acc, self.COMFORT_ACC_MIN * 0.7)
+            
+            # 物理的に停止不可能な場合
+            else:
+                # 黄信号で停止不可能な場合は通過を試みる
+                if s == TrafficLightState.YELLOW:
+                    return acc
+
+        return acc
 
 
-    def get_min_break_dist(self):
+    def get_min_brake_dist(self):
         v = self.speed
         a = abs(self.COMFORT_ACC_MIN)
         return v ** 2 / (2 * a)
     
 
-    def get_desired_acc(self, d):
+    def get_desired_acc(self, d, target_v=0):
         v = self.speed
-        return - v**2 / (2 * d)
+        d = utils.not_zero(d, 1)
+
+        acc = (target_v**2 - v**2) / (2 * d)  
+        
+        if target_v == 0 and v < 0:
+            acc = -acc
+
+        return acc
+
+
+    def get_acc_frontvehicle(self, ego_vehicle, front_vehicle, acc):
+        if front_vehicle is None or ego_vehicle is None:
+            return acc
+
+        d = ego_vehicle.lane_distance_to(front_vehicle)
+        # 相対速度（自車 - 前方車）
+        dv = ego_vehicle.speed - front_vehicle.speed
+
+        speed_coef = self.FOLLOWING_DISTANCE_SPEED_COEF
+        r_speed_coef = self.FOLLOWING_DISTANCE_RELATIVE_SPEED_COEF
+
+        # 理想的な車間距離
+        ideal_dist = self.MIN_FOLLOWING_DISTANCE \
+            + ego_vehicle.speed * speed_coef \
+            + ego_vehicle.LENGTH
     
+        ideal_v = front_vehicle.speed - r_speed_coef * dv
+
+        dd = ideal_dist - d
+
+        acc = self.get_desired_acc(dd, ideal_v)
+        # print(f"ideal_dist: {ideal_dist}, d: {d}, ideal_v: {ideal_v}, v: {self.speed}, acc: {acc}")
+        return acc
 
     def desired_gap(
         self,

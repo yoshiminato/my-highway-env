@@ -38,15 +38,15 @@ class IntersectionTrafficLightEnv(AbstractEnv):
                 "action": {
                     "type": "DiscreteMetaAction",
                     "longitudinal": True,
-                    "lateral": True,
+                    "lateral": False,
                     # "target_speeds": [0, 4.5, 9],
                     "target_speeds": [0, 1, 2],
                 },
-                "duration": 30,  # [s]
-                "destination": None, #"center_oo1",
+                "duration": 60,  # [s]
+                "destination": "center_oo2", # None,
                 "controlled_vehicles": 1,
-                "initial_vehicle_count": 10,
-                "spawn_probability": 1,
+                "initial_vehicle_count": 15,
+                "spawn_probability": 0,
                 "screen_width": 600,
                 "screen_height": 600,
                 "centering_position": [0.5, 0.6],
@@ -163,7 +163,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         left_turn_radius = lane_width + 5  # [m}
         right_turn_radius = left_turn_radius + lane_width  # [m}
         outer_distance = left_turn_radius + lane_width / 2
-        access_length = 50 + 20 # [m]
+        access_length = 50 + 40 # [m]
 
         road_net = RoadNetwork()
         traffic_net = TrafficLightNetwork(self)
@@ -265,18 +265,18 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         simulation_steps = 3
         for t in range(n_vehicles - 1):
             self._spawn_vehicle(np.linspace(0, 80, n_vehicles)[t])
-        for _ in range(simulation_steps):
-            [
-                (
-                    self.road.act(),
-                    self.road.step(1 / self.config["simulation_frequency"]),
-                )
-                for _ in range(self.config["simulation_frequency"])
-            ]
+        # for _ in range(simulation_steps):
+        #     [
+        #         (
+        #             self.road.act(),
+        #             self.road.step(1 / self.config["simulation_frequency"]),
+        #         )
+        #         for _ in range(self.config["simulation_frequency"])
+        #     ]
 
         # Challenger vehicle
         self._spawn_vehicle(
-            20,
+            70,
             spawn_probability=1,
             go_straight=True,
             position_deviation=0.1,
@@ -297,16 +297,16 @@ class IntersectionTrafficLightEnv(AbstractEnv):
                 destination = "center_oo" + str(
                     self.np_random.integers(0, 4)
                 )
-            print("plan from " + f"center_oi{ego_id % 4} to {destination}")
+            # print("plan from " + f"center_oi{ego_id % 4} to {destination}")
             ego_vehicle = self.action_type.vehicle_class(
                 self.road,
-                ego_lane.position(20 + 5 * self.np_random.normal(1), 0),
+                ego_lane.position(40, 0),
                 speed=ego_lane.speed_limit,
                 heading=ego_lane.heading_at(60),
             )
             try:
                 ego_vehicle.plan_route_to(destination)
-                print("Planned route:", ego_vehicle.route)
+                # print("Planned route:", ego_vehicle.route)
                 ego_vehicle.speed_index = ego_vehicle.speed_to_index(
                     ego_lane.speed_limit
                 )
@@ -338,14 +338,14 @@ class IntersectionTrafficLightEnv(AbstractEnv):
 
         lane_id = self.np_random.choice(range(2))
         route = self.np_random.choice(range(4), size=2, replace=False)
-        # route = np.array([0, 2])
+        # route = np.array([0, 1])
         # route[1] = (route[0] + 2) % 4 if go_straight else route[1]
-        route[1] = (route[0] - 1) % 4
+        route[1] = (route[0] + 2) % 4 if go_straight or route[0] == route[1] else route[1]
         vehicle_type = utils.class_from_path(self.config["other_vehicles_type"])
         vehicle = vehicle_type.make_on_lane(
             self.road,
             # ("center_oi" + str(route[0]) + "_1", "center_ii" + str(route[0]) + "_1", 0),
-            ("center_oi" + str(route[0]), "center_ii" + str(route[0]), lane_id),
+            ("center_oi" + str(route[0]), "center_ii" + str(route[0]), lane_id),#,<lane_id>),
 
             longitudinal=(
                 longitudinal + 5 + self.np_random.normal() * position_deviation
