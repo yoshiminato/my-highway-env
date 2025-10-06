@@ -122,6 +122,9 @@ class EnvViewer:
         """Display the road and vehicles on a pygame window."""
         if not self.enabled:
             return
+        
+        # print("controlled vehicle:", self.env.controlled_vehicles)
+        # print(str(self.window_position()))
 
         self.sim_surface.move_display_window_to(self.window_position())
         RoadGraphics.display(self.env.road, self.sim_surface)
@@ -189,6 +192,7 @@ class EnvViewer:
 
     def window_position(self) -> np.ndarray:
         """the world position of the center of the displayed window."""
+
         if self.observer_vehicle:
             return self.observer_vehicle.position
         elif self.env.vehicle:

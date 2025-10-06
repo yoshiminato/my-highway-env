@@ -111,6 +111,7 @@ class RoadObject(ABC):
                     other.impact = -transition / 2
         if intersecting:
             if self.solid and other.solid:
+                # print("collision")
                 self.crashed = True
                 other.crashed = True
             if not self.solid:

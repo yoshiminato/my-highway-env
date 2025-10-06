@@ -37,6 +37,8 @@ class TrafficLightGraphics:
         surface: WorldSurface,
         position: tuple[float, float] = (0, 0),
     ) -> None:
+        
+        current_state = TrafficLightState(current_state)
 
         if current_state == TrafficLightState.NONE:
             return  # No traffic light to display

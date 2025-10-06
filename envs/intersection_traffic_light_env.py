@@ -43,16 +43,16 @@ class IntersectionTrafficLightEnv(AbstractEnv):
                     "target_speeds": [0, 1, 2],
                 },
                 "duration": 60,  # [s]
-                "destination": "center_oo2", # None,
-                "controlled_vehicles": 1,
-                "initial_vehicle_count": 15,
+                "destination": None,
+                "controlled_vehicles": 10,
+                "initial_vehicle_count": 5,
                 "spawn_probability": 0,
                 "screen_width": 600,
                 "screen_height": 600,
                 "centering_position": [0.5, 0.6],
                 "scaling": 5.5 * 1.3,
-                "collision_reward": -5,
-                "high_speed_reward": 1,
+                "collision_reward": -2,
+                "high_speed_reward": 1e-3,
                 "arrived_reward": 1,
                 "reward_speed_range": [7.0, 9.0],
                 "normalize_reward": False,
@@ -92,21 +92,26 @@ class IntersectionTrafficLightEnv(AbstractEnv):
                 [self.config["collision_reward"], self.config["arrived_reward"]],
                 [0, 1],
             )
+        # if vehicle.crashed:
+        #     print("reward: " + str(reward))
         return reward
 
     def _agent_rewards(self, action: int, vehicle: Vehicle) -> dict[str, float]:
         """Per-agent per-objective reward signal."""
-        scaled_speed = utils.lmap(
-            vehicle.speed, self.config["reward_speed_range"], [0, 1]
-        )
+        # scaled_speed = utils.lmap(
+        #     vehicle.speed, self.config["reward_speed_range"], [0, 1]
+        # )
         return {
             "collision_reward": vehicle.crashed,
-            "high_speed_reward": np.clip(scaled_speed, 0, 1),
+            "high_speed_reward": vehicle.speed,#np.clip(scaled_speed, 0, 1),
             "arrived_reward": self.has_arrived(vehicle),
             "on_road_reward": vehicle.on_road,
         }
 
     def _is_terminated(self) -> bool:
+        # print(f"any crashed: {any(vehicle.crashed for vehicle in self.controlled_vehicles)}")
+        # if self.controlled_vehicles[0].crashed:
+        #     print(f"first vehicle crashed")
         return (
             any(vehicle.crashed for vehicle in self.controlled_vehicles)
             or all(self.has_arrived(vehicle) for vehicle in self.controlled_vehicles)
@@ -163,7 +168,7 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         left_turn_radius = lane_width + 5  # [m}
         right_turn_radius = left_turn_radius + lane_width  # [m}
         outer_distance = left_turn_radius + lane_width / 2
-        access_length = 50 + 40 # [m]
+        access_length = 50 + 50 # [m]
 
         road_net = RoadNetwork()
         traffic_net = TrafficLightNetwork(self)
@@ -265,14 +270,14 @@ class IntersectionTrafficLightEnv(AbstractEnv):
         simulation_steps = 3
         for t in range(n_vehicles - 1):
             self._spawn_vehicle(np.linspace(0, 80, n_vehicles)[t])
-        # for _ in range(simulation_steps):
-        #     [
-        #         (
-        #             self.road.act(),
-        #             self.road.step(1 / self.config["simulation_frequency"]),
-        #         )
-        #         for _ in range(self.config["simulation_frequency"])
-        #     ]
+        for _ in range(simulation_steps):
+            [
+                (
+                    self.road.act(),
+                    self.road.step(1 / self.config["simulation_frequency"]),
+                )
+                for _ in range(self.config["simulation_frequency"])
+            ]
 
         # Challenger vehicle
         self._spawn_vehicle(
@@ -283,30 +288,40 @@ class IntersectionTrafficLightEnv(AbstractEnv):
             speed_deviation=0,
         )
 
+        rand = self.np_random.integers(0, 4)
+        longitudinals = np.linspace(0, 80, self.config["controlled_vehicles"])
+        index_flg = [False for _ in range(self.config["controlled_vehicles"])]
         # Controlled vehicles
         self.controlled_vehicles = []
         for ego_id in range(0, self.config["controlled_vehicles"]):
+
+            lane = self.np_random.integers(0, 2)
             ego_lane = self.road.network.get_lane(
-                # (f"center_oi{ego_id % 4}_0", f"center_ii{ego_id % 4}_0", 0)
-                (f"center_oi{ego_id % 4}", f"center_ii{ego_id % 4}", 1)
+                (f"center_oi{(ego_id + rand) % 4}", f"center_ii{(ego_id + rand) % 4}", lane)
 
             )
             destination = self.config["destination"]
-            # while destination is None or destination == f"center_oo{ego_id % 4}":
-            while destination is None or  f"center_oo{ego_id % 4}" in destination:
+            while destination is None or  f"center_oo{(ego_id + rand) % 4}" in destination:
                 destination = "center_oo" + str(
                     self.np_random.integers(0, 4)
                 )
-            # print("plan from " + f"center_oi{ego_id % 4} to {destination}")
+
+            cand = [(i, l) for i, l in enumerate(longitudinals) if (i%4) == (ego_id%4) and not index_flg[i]]
+            index, longitudinal = self.np_random.choice(cand)
+            index_flg[int(index)] = True
+
             ego_vehicle = self.action_type.vehicle_class(
                 self.road,
-                ego_lane.position(40, 0),
+                # ego_lane.position(40, 0),
+                # ego_lane.position(50 + self.np_random.normal() * 30, 0),
+                # ego_lane.position(longitudinals[ego_id], 0),
+                ego_lane.position(longitudinal, 0),
+
                 speed=ego_lane.speed_limit,
                 heading=ego_lane.heading_at(60),
             )
             try:
                 ego_vehicle.plan_route_to(destination)
-                # print("Planned route:", ego_vehicle.route)
                 ego_vehicle.speed_index = ego_vehicle.speed_to_index(
                     ego_lane.speed_limit
                 )
@@ -338,19 +353,16 @@ class IntersectionTrafficLightEnv(AbstractEnv):
 
         lane_id = self.np_random.choice(range(2))
         route = self.np_random.choice(range(4), size=2, replace=False)
-        # route = np.array([0, 1])
-        # route[1] = (route[0] + 2) % 4 if go_straight else route[1]
         route[1] = (route[0] + 2) % 4 if go_straight or route[0] == route[1] else route[1]
         vehicle_type = utils.class_from_path(self.config["other_vehicles_type"])
         vehicle = vehicle_type.make_on_lane(
             self.road,
-            # ("center_oi" + str(route[0]) + "_1", "center_ii" + str(route[0]) + "_1", 0),
-            ("center_oi" + str(route[0]), "center_ii" + str(route[0]), lane_id),#,<lane_id>),
+            ("center_oi" + str(route[0]), "center_ii" + str(route[0]), lane_id),
 
-            longitudinal=(
+            longitudinal = (
                 longitudinal + 5 + self.np_random.normal() * position_deviation
             ),
-            speed=3 + self.np_random.normal() * speed_deviation,
+            speed = 3 + self.np_random.normal() * speed_deviation,
         )
         for v in self.road.vehicles:
             if np.linalg.norm(v.position - vehicle.position) < 15:

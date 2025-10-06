@@ -5,10 +5,10 @@ import numpy as np
 
 
 class TrafficLightState(Enum):
-    RED = 1
-    YELLOW = 2
-    GREEN = 3
-    NONE = 4
+    RED = 0
+    YELLOW = 1
+    GREEN = 2
+    NONE = 3
 
 
 class TrafficLightRule:
@@ -140,8 +140,8 @@ class TrafficLightNetwork:
 
                     if _id != None and i != _id:
                             # print(self.get_caller_name())
-                            if self.get_caller_name() == "observe":
-                                print(f"======Skipping {i_name}, {r_name} (id mismatch) {i} != {_id}")
+                            # if self.get_caller_name() == "observe":
+                            #     print(f"======Skipping {i_name}, {r_name} (id mismatch) {i} != {_id}")
                             continue
                     
                     lane = self.env.road.network.get_lane((f, t, i))

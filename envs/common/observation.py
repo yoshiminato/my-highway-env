@@ -593,6 +593,7 @@ class MultiAgentObservation(ObservationType):
         self.agents_observation_types = []
         for vehicle in self.env.controlled_vehicles:
             obs_type = observation_factory(self.env, self.observation_config)
+            # print(vehicle)
             obs_type.observer_vehicle = vehicle
             self.agents_observation_types.append(obs_type)
 
@@ -602,6 +603,10 @@ class MultiAgentObservation(ObservationType):
         )
 
     def observe(self) -> tuple:
+        print("====================")
+        for obs_type in self.agents_observation_types:
+            print(obs_type.observer_vehicle)
+            print(obs_type.observe()[0][0])
         return tuple(obs_type.observe() for obs_type in self.agents_observation_types)
 
 
@@ -804,6 +809,7 @@ class TrafficLightObservation(ObservationType):
         env = self.env
         net = env.road.traffic_light_network
         state, distance = net.observe_traffic_light(self.observer_vehicle)
+        # print(f"vehicle: {self.observer_vehicle}, state: {state}")
         # state = TrafficLightState.NONE
         # distance = np.array([float('inf')], dtype=np.float32)
         # print(self.observer_vehicle.route)
@@ -816,8 +822,9 @@ class TrafficLightObservation(ObservationType):
         #     # print(f"current_lane: {self.observer_vehicle.lane_index}")
         #     print(f"route: {self.observer_vehicle.route}")
         # obs = distance
+        # print(f"state: {state}, distance: {distance}")
         obs = {
-            "traffic_light_state": state,
+            "traffic_light_state": int(state.value),
             "distance_to_traffic_light": distance
         }
         return obs
