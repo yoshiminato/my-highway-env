@@ -267,10 +267,16 @@ class ObservationGraphics:
 
     @classmethod
     def display(cls, obs, sim_surface):
-        from highway_env.envs.common.observation import LidarObservation, TupleObservation, TrafficLightObservation
+        from highway_env.envs.common.observation import LidarObservation, TupleObservation, MultiAgentObservation, TrafficLightObservation
 
         # tupleObservationでも観測の可視化ができるよう修正
         observations = []
+        if isinstance(obs, MultiAgentObservation):
+            # print(obs.agents_observation_types)
+            obs = obs.agents_observation_types[0]
+
+        print(obs)
+        print()
         if isinstance(obs, TupleObservation):
             observations = obs.observation_types
         else:
@@ -280,7 +286,7 @@ class ObservationGraphics:
             if isinstance(observation, TrafficLightObservation):
                 # print(f"Traffic light observation: {observation.observe()}")
                 state = observation.observe()["traffic_light_state"]
-                # print(f"Traffic light state: {state}")
+                print(f"Traffic light state: {state}")
                 TrafficLightGraphics.display_agent_obs(current_state=state, surface=sim_surface)
                 continue
             if isinstance(observation, LidarObservation):

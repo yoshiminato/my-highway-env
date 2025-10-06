@@ -603,10 +603,12 @@ class MultiAgentObservation(ObservationType):
         )
 
     def observe(self) -> tuple:
-        print("====================")
-        for obs_type in self.agents_observation_types:
-            print(obs_type.observer_vehicle)
-            print(obs_type.observe()[0][0])
+        # print("=============================================")
+        # for obs_type in self.agents_observation_types:
+        #     # print(obs_type.observer_vehicle)
+        #     # print(obs_type.observe()[0][0])
+        #     # print(obs_type.observer_vehicle)
+        #     pass
         return tuple(obs_type.observe() for obs_type in self.agents_observation_types)
 
 
@@ -615,16 +617,33 @@ class TupleObservation(ObservationType):
         self, env: AbstractEnv, observation_configs: list[dict], **kwargs
     ) -> None:
         super().__init__(env)
+        # print(observation_configs)
+        # self.observation_types = []
+        # for obs_config in observation_configs:
+        #     obs_type = observation_factory(self.env, obs_config)
+        #     print(self.observer_vehicle)
+        #     obs_type.observer_vehicle = self.observer_vehicle
+        #     self.observation_types.append(obs_type)
         self.observation_types = [
             observation_factory(self.env, obs_config)
             for obs_config in observation_configs
         ]
+      
 
     def space(self) -> spaces.Space:
         return spaces.Tuple([obs_type.space() for obs_type in self.observation_types])
 
     def observe(self) -> tuple:
-        return tuple(obs_type.observe() for obs_type in self.observation_types)
+        obs = []
+        # print(f"tuple: {self.observer_vehicle}")
+        for obs_type in self.observation_types:
+            
+            obs_type.observer_vehicle = self.observer_vehicle
+            # print(f"tuple: {obs_type.observer_vehicle}")
+            obs.append(obs_type.observe())
+        return tuple(obs)
+        # print(self.observer_vehicle)
+        # return tuple(obs_type.observe() for obs_type in self.observation_types)
 
 
 class ExitObservation(KinematicObservation):
@@ -786,12 +805,6 @@ class TrafficLightObservation(ObservationType):
         super().__init__(env, **kwargs)
 
     def space(self) -> spaces.Space:
-        # return spaces.Box(
-        #     low=-np.inf, 
-        #     high=np.inf, 
-        #     shape=(1,), 
-        #     dtype=np.float32
-        # )
         return spaces.Dict({
             # 0: 赤, 1: 黄, 2: 緑, 3: 無信号
             "traffic_light_state": spaces.Discrete(4),  
@@ -808,6 +821,9 @@ class TrafficLightObservation(ObservationType):
     def observe(self) -> np.ndarray:
         env = self.env
         net = env.road.traffic_light_network
+        # print(f"traffic: {self.observer_vehicle}")
+        # print(f"traffic: {self}")
+        # print(f"observer_vehicle: {self.observer_vehicle}")
         state, distance = net.observe_traffic_light(self.observer_vehicle)
         # print(f"vehicle: {self.observer_vehicle}, state: {state}")
         # state = TrafficLightState.NONE
